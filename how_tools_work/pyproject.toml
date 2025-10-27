@@ -1,0 +1,11 @@
+[project]
+name = "how-tools-work"
+version = "0.1.0"
+description = "OpenAI-compatible mock API"
+readme = "README.md"
+requires-python = ">=3.12"
+dependencies = [
+    "fastapi[standard]>=0.120.0",
+    "ollama>=0.6.0",
+    "uvicorn>=0.38.0",
+]
