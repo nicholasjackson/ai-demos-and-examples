@@ -3,23 +3,28 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import StreamingResponse
 from datetime import datetime
-from ollama import Client, ChatResponse
+from ollama import Client
 import uuid
 import json
 import asyncio
 import os
+from pydantic import BaseModel, ValidationError
+
+from weather import get_weather
 
 from models import (
     ChatCompletionRequest,
-    ChatCompletionResponse,
-    ChatCompletionChoice,
-    ChatCompletionMessage,
-    Usage,
     Model,
     ModelList,
     StreamChoice,
     StreamResponse,
 )
+
+
+class ToolCall(BaseModel):
+    tool: str
+    parameters: dict
+
 
 app = FastAPI(title="Mock OpenAI API", version="1.0.0")
 
@@ -63,6 +68,50 @@ def list_models():
     return ModelList(data=data)
 
 
+@app.post("/v1/chat/completions")
+async def chat_completions(req: ChatCompletionRequest):
+    """Handle chat completion requests (streaming and non-streaming)."""
+
+    # Get the last user message
+    user_message = next(
+        (msg.content for msg in reversed(req.messages) if msg.role == "user"), "Hello"
+    )
+
+    # Load the system prompt from file
+    with open("./prompt.md", "r") as f:
+        system_prompt = f.read()
+        print("Loaded system prompt from file.", system_prompt)
+
+    # Send to ollama chat endpoint
+    resp = get_ollama_client().generate(
+        model=req.model, system=system_prompt, prompt=user_message
+    )
+
+    # Print the response from ollama
+    response_data = resp.response
+    print("Ollama chat response:", response_data)
+
+    # If the response contains a tool call, handle it
+    try:
+        tool_call = ToolCall.model_validate_json(response_data)
+        if tool_call.tool == "weather":
+            location = tool_call.parameters.get("city", "unknown")
+
+            response_data = get_weather(location)
+
+    except ValidationError as e:
+        # Not a tool call, return as normal chat response
+        print("Response is not a tool call:", e)
+
+    completion_id = f"chatcmpl-{uuid.uuid4().hex[:12]}"
+
+    # Handle streaming
+    return StreamingResponse(
+        generate_stream(completion_id, req.model, response_data),
+        media_type="text/event-stream",
+    )
+
+
 async def generate_stream(
     completion_id: str, model: str, content: str
 ) -> AsyncGenerator[str, None]:
@@ -97,53 +146,6 @@ async def generate_stream(
     )
     yield f"data: {json.dumps(final_chunk.model_dump())}\n\n"
     yield "data: [DONE]\n\n"
-
-
-@app.post("/v1/chat/completions")
-async def chat_completions(req: ChatCompletionRequest):
-    """Handle chat completion requests (streaming and non-streaming)."""
-    # Get the last user message
-    user_message = next(
-        (msg.content for msg in reversed(req.messages) if msg.role == "user"), "Hello"
-    )
-
-    # Send to ollama chat endpoint
-    resp = get_ollama_client().chat(
-        model=req.model,
-        messages=[{"role": "user", "content": user_message}],
-    )
-    response_content = resp.message.content if resp.message.content else ""
-
-    print("Ollama chat response:", resp)
-
-    completion_id = f"chatcmpl-{uuid.uuid4().hex[:12]}"
-
-    # Handle streaming
-    if req.stream:
-        return StreamingResponse(
-            generate_stream(completion_id, req.model, response_content),
-            media_type="text/event-stream",
-        )
-
-    # Handle non-streaming
-    return ChatCompletionResponse(
-        id=completion_id,
-        object="chat.completion",
-        created=int(datetime.now().timestamp()),
-        model=req.model,
-        choices=[
-            ChatCompletionChoice(
-                index=0,
-                message=ChatCompletionMessage(role="assistant", content="ok"),
-                finish_reason="stop",
-            )
-        ],
-        usage=Usage(
-            prompt_tokens=len(user_message.split()),
-            completion_tokens=len(response_content),
-            total_tokens=len(user_message.split()) + len(response_content),
-        ),
-    )
 
 
 if __name__ == "__main__":

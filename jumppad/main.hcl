@@ -30,11 +30,6 @@ resource "container" "mongodb" {
     host   = "27017"
   }
 
-  volume {
-    source      = "./data/mongodb"
-    destination = "/data/db"
-  }
-
   environment = {
     MONGO_INITDB_DATABASE = "chat-ui"
   }
@@ -83,14 +78,6 @@ resource "container" "chat_ui" {
     # Session and security settings
     COOKIE_NAME = "hf-chat"
     HF_TOKEN    = env("HF_TOKEN")
-  }
-
-  health_check {
-    timeout = "60s"
-    http {
-      address       = "http://localhost:8080"
-      success_codes = [200, 302]
-    }
   }
 }
 
