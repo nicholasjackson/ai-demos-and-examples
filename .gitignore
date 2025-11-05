@@ -1,3 +1,4 @@
 .env
 jumppad/data/
 __pycache__/
+.claude
