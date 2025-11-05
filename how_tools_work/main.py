@@ -99,9 +99,13 @@ async def chat_completions(req: ChatCompletionRequest):
 
             response_data = get_weather(location)
 
+            print(
+                f"Tool call 'weather' executed for location: {location}, result: {response_data}"
+            )
+
     except ValidationError as e:
         # Not a tool call, return as normal chat response
-        print("Response is not a tool call:", e)
+        print("Response is not a tool call:")
 
     completion_id = f"chatcmpl-{uuid.uuid4().hex[:12]}"
 
