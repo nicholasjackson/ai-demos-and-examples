@@ -15,6 +15,7 @@ client = MultiServerMCPClient(
 llm = ChatOllama(
     model="llama3.2",
     temperature=0,
+    base_url="http://localhost:11435",  # Point to our proxy instead of Ollama directly
 )
 
 

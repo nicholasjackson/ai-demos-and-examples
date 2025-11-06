@@ -1,0 +1,30 @@
+# Logs directory
+logs/
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+env/
+venv/
+ENV/
+.venv
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Ignore all log files
+logs/*.jsonl
+
+# Ignore langgraph cache
+.langgraph_api
