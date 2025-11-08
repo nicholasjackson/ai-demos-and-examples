@@ -10,9 +10,9 @@ import asyncio
 import os
 from pydantic import BaseModel, ValidationError
 
-from weather import get_weather
+from tools.weather import get_weather
 
-from models import (
+from openai.models import (
     ChatCompletionRequest,
     Model,
     ModelList,
